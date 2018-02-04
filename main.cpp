@@ -6,28 +6,26 @@
 using namespace std;
 using namespace cv;
 
-//二值化
-void mythreshold(Mat &img, uchar T)
-{
-	int n1 = img.rows;
-	int nc = img.cols * img.channels();
-	if (img.isContinuous())//判断图像是否连续
-	{
-		nc = nc * n1;
-		n1 = 1;
-	}
-	for (int i = 0; i < n1; i++)
-	{
-		uchar *p = img.ptr<uchar>(i);
-		for (int j = 0; j < nc; j++)
-		{
-			if (p[j] < T)
-				p[j] = 0;
-			else p[j] = 255;
-		}
-	}
-}
+float scree_size = 0;
+float scree_width = 0;
+float scree_height = 0;
+string project_path;
 
+//读入配置信息
+void yml_read()
+{
+	FileStorage fs("E:/mygithub/WeChat-Jump/configure.yml", FileStorage::READ);
+
+	fs["scree_size"] >> scree_size;				//屏幕大小
+	fs["scree_width"] >> scree_width;			//屏幕宽度
+	fs["scree_height"] >> scree_height;			//屏幕高度
+	fs["project_path"] >> project_path;			//工程路径
+
+	cout << "scree_size = " << scree_size << endl;
+	cout << "scree_width = " << scree_width << endl;
+	cout << "scree_height = " << scree_height << endl;
+	cout << "project_path = " << project_path << endl;
+}
 //获取截图
 void get_screen()
 {
@@ -39,9 +37,10 @@ void get_screen()
 
 	int flag;
 	PyRun_SimpleString("import os");
+
+	//手机截图，再上传到电脑，比较麻烦
 	//PyRun_SimpleString("os.system('adb shell screencap -p //sdcard//src.png')");
 	//flag = PyRun_SimpleString("os.system('adb pull //sdcard//src.png')");
-
 
 	//不用手机截图，直接上传到电脑
 	flag = PyRun_SimpleString("os.system('adb exec-out screencap -p > src.png')");
@@ -81,6 +80,7 @@ void press(int x1, int y1, int x2, int y2, int dist)
 	pFunc = PyObject_GetAttrString(pModule, "press_value");
 	pArg = Py_BuildValue("(i, i, i, i, i)", x1, y1, x2, y2, dist);
 	PyEval_CallObject(pFunc, pArg);
+
 
 	Py_Finalize();	//关闭Python  
 }
@@ -222,23 +222,9 @@ void dist(Point start, Point next, float &dist_val)
 	cout << "距离：" << distance << "  按压时间：" << dist_val << endl;
 }
 
-Point point_mouse = Point(0, 0);
-void on_mouse(int event, int x, int y, int flags, void *ustc)//event鼠标事件代号，x,y鼠标坐标，flags拖拽和键盘操作的代号  
-{
-	if (event == CV_EVENT_LBUTTONDOWN)//左键按下，读取初始坐标
-	{
-		point_mouse.x = x;
-		point_mouse.y = y;
-		//cout << "  鼠标值已更新" << point_mouse << endl;
-	}
-}
-
 int main()
 {
-	////通过鼠标确定下一位置(半自动)
-	//namedWindow("img_src");
-	//setMouseCallback("img_src", on_mouse, 0);//调用回调函数
-
+	yml_read();
 
 	int count = 0;		//跳的次数进行计数
 	while (1)
@@ -255,42 +241,29 @@ int main()
 		Mat img_src = imread("src.png");
 		resize(img_src, img_src, Size(img_src.cols >> 1, img_src.rows >> 1));	//540, 960
 
-		//载入棋子模板
-		Mat img_model = imread("E:\\mygithub\\WeChat-Jump\\img_model.jpg");
-		resize(img_model, img_model, Size(img_model.cols >> 1, img_model.rows >> 1));
+		//创建图像用来处理
+		Mat img_temp;
+		img_src.copyTo(img_temp);
 
-		////载入游戏结束模板
-		//Mat img_end = imread("E:\\vs2013test\\3.py-test\\py-test\\img_end.jpg");
-		//resize(img_end, img_end, Size(img_end.cols >> 1, img_end.rows >> 1));
+		//载入棋子模板
+		Mat img_model = imread(project_path + "/img_model.jpg");
+		resize(img_model, img_model, Size(img_model.cols >> 1, img_model.rows >> 1));
 
 		//模板匹配得到棋子位置
 		Point point_start;
 		loca_start(img_src, img_model, point_start);
 		circle(img_src, point_start, 5, Scalar(0, 0, 255), -1);
 
-		Mat img_gray;
-		img_src.copyTo(img_gray);
-		//cvtColor(img_src, img_gray, COLOR_BGR2GRAY);
-
-
 		//边缘检测得到目标位置
 		Point point_next;
-		loca_next(img_gray, point_start, point_next);
+		loca_next(img_temp, point_start, point_next);
 		circle(img_src, point_next, 5, Scalar(0, 255, 0), -1);//画出下一个目标点
-
-
-		/*通过鼠标获取位置*/
-		//Point point_next;
-		//point_next = point_mouse;
-		//circle(img_src, point_next, 5, Scalar(0, 255, 0), -1);//画出下一个目标点
-
 
 		imshow("img_src", img_src);
 		waitKey(10);
 
-
 		//起始点和目标点都存在，则发送指令
-		if (point_start.x != 0 && point_start.y != 0 /*&& point_next.x != 0*/)
+		if (point_start.x != 0 && point_start.y != 0 )
 		{
 			//输出起始终止点坐标
 			cout << "start: " << point_start << "  next: " << point_next << endl;
@@ -305,22 +278,9 @@ int main()
 			cout << "跳的次数：" << count << endl;
 			cout << endl;
 
-			
-			////鼠标位置清零
-			//point_mouse.x = 0;
-			//point_mouse.y = 0;
-
 			char key = waitKey(1000);//一定的延时
 		}
-		//waitKey(0);
-
-
-
-
-		//if (key == 27)
-		//	break;
 	}
 
-	//system("pause");
 	return 0;
 }
