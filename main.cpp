@@ -234,6 +234,8 @@ int main()
 		int myrnd_x = (rand() % (800 - 700 + 1)) + 700 - 1;
 		int myrnd_y = (rand() % (1500 - 1400 + 1)) + 1400 - 1;
 
+		int mytime = (rand() % (1500 - 900 + 1)) + 900 - 1;
+
 		//得到手机截图
 		get_screen();
 
@@ -278,7 +280,7 @@ int main()
 			cout << "跳的次数：" << count << endl;
 			cout << endl;
 
-			char key = waitKey(1000);//一定的延时
+			char key = waitKey(mytime);//一定的延时
 		}
 	}
 
