@@ -2,6 +2,8 @@
 #include <iostream>
 #include <Python.h>
 #include <opencv2/opencv.hpp>
+#include <stdio.h>
+#include <direct.h>
 
 using namespace std;
 using namespace cv;
@@ -9,23 +11,50 @@ using namespace cv;
 float scree_size = 0;
 float scree_width = 0;
 float scree_height = 0;
-string project_path;
+char path[200];		//Pyton路径
 
 //读入配置信息
 void yml_read()
 {
-	FileStorage fs("E:/mygithub/WeChat-Jump/configure.yml", FileStorage::READ);
+	FileStorage fs("configure.yml", FileStorage::READ);
 
 	fs["scree_size"] >> scree_size;				//屏幕大小
 	fs["scree_width"] >> scree_width;			//屏幕宽度
 	fs["scree_height"] >> scree_height;			//屏幕高度
-	fs["project_path"] >> project_path;			//工程路径
+	//fs["project_path"] >> project_path;			//工程路径
 
 	cout << "scree_size = " << scree_size << endl;
 	cout << "scree_width = " << scree_width << endl;
 	cout << "scree_height = " << scree_height << endl;
-	cout << "project_path = " << project_path << endl;
+	//cout << "project_path = " << project_path << endl;
 }
+
+//设定Python路径
+void set_Python_path()
+{
+	//获取当前路径
+	char buffer[200];
+	_getcwd(buffer, 200);
+	for (int i = 0; i < 200; i++)
+	{
+		if (buffer[i] == '\0')
+			break;
+		if (buffer[i] == '\\')	// '\'的ASCII码 92
+		{
+			buffer[i] = '/';	// '/'的ASCII码 47
+		}
+	}
+
+	//连接字符串
+	strcpy_s(path, "sys.path.append('");
+	strcat_s(path, buffer);
+	strcat_s(path, "')");
+
+	////string 转化为 char*
+	//char path[100];
+	//strcpy_s(path, project_path.c_str());
+}
+
 //获取截图
 void get_screen()
 {
@@ -63,7 +92,7 @@ void press(int x1, int y1, int x2, int y2, int dist)
 
 	PyRun_SimpleString("import os");
 	PyRun_SimpleString("import sys");
-	PyRun_SimpleString("sys.path.append('E:/mygithub/WeChat-Jump')");	//设定Python路径
+	PyRun_SimpleString(path);	//设定Python路径
 	PyObject *pModule = NULL;
 	PyObject *pFunc = NULL;
 	PyObject *pArg = NULL;
@@ -80,7 +109,6 @@ void press(int x1, int y1, int x2, int y2, int dist)
 	pFunc = PyObject_GetAttrString(pModule, "press_value");
 	pArg = Py_BuildValue("(i, i, i, i, i)", x1, y1, x2, y2, dist);
 	PyEval_CallObject(pFunc, pArg);
-
 
 	Py_Finalize();	//关闭Python  
 }
@@ -202,6 +230,9 @@ void loca_next(Mat img_gray, Point point_start, Point &point_next)
 		circle(img_scan, p_node, 10, Scalar(0), 2);
 		p_node.x += area_0.x;
 		p_node.y += area_0.y;
+
+		p_node.x += 1;
+
 		point_next = p_node;
 	}
 
@@ -218,13 +249,16 @@ void dist(Point start, Point next, float &dist_val)
 	//float distance = xx / sin(3.1415926 / 6);
 
 	//int distance = sqrt(pow(next.x - start.x, 2) + pow(start.y - next.y, 2));
-	dist_val = (float)distance * 2.8019 + 14.4488;	//dist_val = (float)distance * 2.8419 + 8.4488;
+	dist_val = (float)distance * 2.8119 + 16.4488;	//dist_val = (float)distance * 2.8419 + 8.4488;
 	cout << "距离：" << distance << "  按压时间：" << dist_val << endl;
 }
 
 int main()
 {
 	yml_read();
+	set_Python_path();
+
+
 
 	int count = 0;		//跳的次数进行计数
 	while (1)
@@ -241,6 +275,8 @@ int main()
 
 		//载入截图
 		Mat img_src = imread("src.png");
+		if (img_src.empty())
+			continue;
 		resize(img_src, img_src, Size(img_src.cols >> 1, img_src.rows >> 1));	//540, 960
 
 		//创建图像用来处理
@@ -248,7 +284,7 @@ int main()
 		img_src.copyTo(img_temp);
 
 		//载入棋子模板
-		Mat img_model = imread(project_path + "/img_model.jpg");
+		Mat img_model = imread("img_model.jpg");
 		resize(img_model, img_model, Size(img_model.cols >> 1, img_model.rows >> 1));
 
 		//模板匹配得到棋子位置
@@ -282,6 +318,7 @@ int main()
 
 			char key = waitKey(mytime);//一定的延时
 		}
+		
 	}
 
 	return 0;
