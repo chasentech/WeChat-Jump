@@ -8,9 +8,8 @@
 using namespace std;
 using namespace cv;
 
-float scree_size = 0;
-float scree_width = 0;
-float scree_height = 0;
+float param_k = 0;
+float param_b = 0;
 char path[200];		//Pyton路径
 
 //读入配置信息
@@ -18,15 +17,11 @@ void yml_read()
 {
 	FileStorage fs("configure.yml", FileStorage::READ);
 
-	fs["scree_size"] >> scree_size;				//屏幕大小
-	fs["scree_width"] >> scree_width;			//屏幕宽度
-	fs["scree_height"] >> scree_height;			//屏幕高度
-	//fs["project_path"] >> project_path;			//工程路径
+	fs["param_k"] >> param_k;			//线性关系k
+	fs["param_b"] >> param_b;			//线性关系b
 
-	cout << "scree_size = " << scree_size << endl;
-	cout << "scree_width = " << scree_width << endl;
-	cout << "scree_height = " << scree_height << endl;
-	//cout << "project_path = " << project_path << endl;
+	cout << "param_k = " << param_k << endl;
+	cout << "param_b = " << param_b << endl;
 }
 
 //设定Python路径
@@ -245,31 +240,25 @@ void dist(Point start, Point next, float &dist_val)
 	float xx = abs((float)next.x - (float)start.x);
 	float distance = xx / cos(3.1415926 / 6);
 
+	next.y = start.y - (distance / 2);
+
 	//float yy = abs((float)start.y - (float)next.y);
 	//float distance = xx / sin(3.1415926 / 6);
 
 	//int distance = sqrt(pow(next.x - start.x, 2) + pow(start.y - next.y, 2));
-	dist_val = (float)distance * 2.8119 + 16.4488;	//dist_val = (float)distance * 2.8419 + 8.4488;
+	dist_val = (float)distance * param_k + param_b;	//dist_val = (float)distance * 2.8419 + 8.4488;
 	cout << "距离：" << distance << "  按压时间：" << dist_val << endl;
 }
 
 int main()
 {
-	yml_read();
-	set_Python_path();
-
-
+	yml_read();		//读入配置信息
+	set_Python_path();	//设置Python路径为当前路径
+	get_screen();	//提前得到手机截图
 
 	int count = 0;		//跳的次数进行计数
 	while (1)
 	{
-		//产生一定范围内的随机数，模拟手指进行按压，否则得分会被清除
-		srand((int)time(NULL));
-		int myrnd_x = (rand() % (800 - 700 + 1)) + 700 - 1;
-		int myrnd_y = (rand() % (1500 - 1400 + 1)) + 1400 - 1;
-
-		int mytime = (rand() % (1500 - 900 + 1)) + 900 - 1;
-
 		//得到手机截图
 		get_screen();
 
@@ -290,12 +279,22 @@ int main()
 		//模板匹配得到棋子位置
 		Point point_start;
 		loca_start(img_src, img_model, point_start);
-		circle(img_src, point_start, 5, Scalar(0, 0, 255), -1);
+		//circle(img_src, point_start, 5, Scalar(0, 0, 255), -1);
+		line(img_src, Point(0, point_start.y), Point(img_src.cols, point_start.y), Scalar(0, 255, 0), 2);
+		line(img_src, Point(point_start.x, 0), Point(point_start.x, img_src.rows), Scalar(0, 255, 0), 2);
 
 		//边缘检测得到目标位置
 		Point point_next;
 		loca_next(img_temp, point_start, point_next);
-		circle(img_src, point_next, 5, Scalar(0, 255, 0), -1);//画出下一个目标点
+		//circle(img_src, point_next, 5, Scalar(0, 255, 0), -1);//画出下一个目标点
+		float xx = abs((float)point_next.x - (float)point_start.x);
+		float distance = xx / cos(3.1415926 / 6);
+		point_next.y = point_start.y - (distance / 2);
+		line(img_src, Point(0, point_next.y), Point(img_src.cols, point_next.y), Scalar(0, 0, 255), 2);
+		line(img_src, Point(point_next.x, 0), Point(point_next.x, img_src.rows), Scalar(0, 0, 255), 2);
+
+		line(img_src, point_start, point_next, Scalar(255, 0, 0), 2);
+
 
 		imshow("img_src", img_src);
 		waitKey(10);
@@ -310,12 +309,22 @@ int main()
 			float dist_val = 0;
 			dist(point_start, point_next, dist_val);
 
+
+
+			//产生一定范围内的随机数，模拟手指进行按压，否则得分会被清除
+			srand((int)time(NULL));
+			int myrnd_x = (rand() % (800 - 700 + 1)) + 700 - 1;
+			int myrnd_y = (rand() % (1500 - 1400 + 1)) + 1400 - 1;
+
 			//发送指令按压屏幕
 			press(myrnd_x, myrnd_y, myrnd_x, myrnd_y, (int)dist_val);
 			count++;
 			cout << "跳的次数：" << count << endl;
-			cout << endl;
 
+			//间隔时间设定为1500-900之间的随机数
+			int mytime = (rand() % (5000 - 1000 + 1)) + 900 - 1;
+			cout << "间隔：" << mytime << endl;
+			cout << endl;
 			char key = waitKey(mytime);//一定的延时
 		}
 		

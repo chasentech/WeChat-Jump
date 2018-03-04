@@ -1,6 +1,4 @@
 %YAML:1.0
 time: "Thu Jun 01 19:50:59 2017\n" 
-scree_size: 5.0
-scree_width: 1080
-scree_height: 1920
-project_path: "sys.path.append('E:/mygithub/WeChat-Jump')"
+param_k: 2.8119
+param_b: 16.4488
