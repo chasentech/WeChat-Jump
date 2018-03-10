@@ -1,9 +1,20 @@
+//#define Python
+#define MYC
+
+
+
+
+
 #include <math.h>
 #include <iostream>
-#include <Python.h>
 #include <opencv2/opencv.hpp>
 #include <stdio.h>
 #include <direct.h>
+
+
+#ifdef Python
+#include <Python.h>
+#endif
 
 using namespace std;
 using namespace cv;
@@ -53,6 +64,7 @@ void set_Python_path()
 //获取截图
 void get_screen()
 {
+#ifdef Python
 	Py_Initialize();	//初始化Python
 
 	// 检查初始化是否成功  
@@ -73,12 +85,19 @@ void get_screen()
 		cout << "获取截图成功" << endl;
 	else cout << "获取截图失败" << endl;
 
-	Py_Finalize();	//关闭Python  
+	Py_Finalize();	//关闭Python
+#endif
+
+#ifdef MYC
+	system("adb exec-out screencap -p > src.png");
+	cout << "获取截图" << endl;
+#endif
 }
 
 //按压屏幕
 void press(int x1, int y1, int x2, int y2, int dist)
 {
+#ifdef Python
 	Py_Initialize();	//初始化Python
 
 	// 检查初始化是否成功  
@@ -106,6 +125,34 @@ void press(int x1, int y1, int x2, int y2, int dist)
 	PyEval_CallObject(pFunc, pArg);
 
 	Py_Finalize();	//关闭Python  
+#endif
+
+#ifdef MYC
+	char mypath[200];
+	char xx1[10], yy1[10], xx2[10], yy2[10];
+	char ddist[10];
+	sprintf_s(xx1, "%d", x1);
+	sprintf_s(yy1, "%d", y1);
+	sprintf_s(xx2, "%d", x2);
+	sprintf_s(yy2, "%d", y2);
+	sprintf_s(ddist, "%d", dist);
+	//连接字符串
+	strcpy_s(mypath, "adb shell input swipe ");
+	strcat_s(mypath, xx1);
+	strcat_s(mypath, " ");
+	strcat_s(mypath, yy1);
+	strcat_s(mypath, " ");
+	strcat_s(mypath, xx2);
+	strcat_s(mypath, " ");
+	strcat_s(mypath, yy2);
+	strcat_s(mypath, " ");
+	strcat_s(mypath, ddist);
+
+	system(mypath);
+	cout << mypath << endl;
+
+#endif
+
 }
 
 //获取棋子位置
@@ -253,7 +300,9 @@ void dist(Point start, Point next, float &dist_val)
 int main()
 {
 	yml_read();		//读入配置信息
+#ifdef Python
 	set_Python_path();	//设置Python路径为当前路径
+#endif
 	get_screen();	//提前得到手机截图
 
 	int count = 0;		//跳的次数进行计数
